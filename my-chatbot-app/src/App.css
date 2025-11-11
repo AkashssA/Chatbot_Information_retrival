@@ -1,0 +1,128 @@
+/* This is your new, separate CSS file.
+  It's imported by App.jsx.
+*/
+
+/* --- Main App Container --- */
+.app-container {
+  width: 100%; /* Make it responsive */
+  max-width: 700px;
+  /* min-height: 85vh; */ /* Height is handled by flex-grow now */
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  height: 85vh; /* Fixed height for the chat window */
+  background-color: #ffffff;
+  overflow: hidden; /* Hide overflow from container */
+}
+
+/* --- Header --- */
+.header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e0e0e0;
+  background-color: #f9f9f9;
+  text-align: center;
+  flex-shrink: 0; /* Prevents header from shrinking */
+}
+
+.title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+}
+
+/* --- Message List --- */
+.message-list {
+  flex-grow: 1; /* Takes up all available vertical space */
+  padding: 20px;
+  overflow-y: auto; /* Allows scrolling for messages */
+  display: flex;
+  flex-direction: column;
+  gap: 12px; /* Space between messages */
+}
+
+/* --- Individual Messages --- */
+.message {
+  padding: 10px 14px;
+  border-radius: 18px;
+  max-width: 75%;
+  line-height: 1.5;
+  font-size: 15px;
+  word-wrap: break-word;
+  white-space: pre-wrap; /* Respects newlines from the bot */
+}
+
+.user-message {
+  align-self: flex-end;
+  background-color: #007aff;
+  color: white;
+}
+
+.bot-message {
+  align-self: flex-start;
+  background-color: #f0f0f0;
+  color: #333;
+  border: 1px solid #e0e0e0;
+}
+
+.error-message {
+  align-self: flex-start;
+  background-color: #ffebee;
+  color: #c62828;
+  border: 1px solid #ef9a9a;
+}
+
+.loading-message {
+  align-self: flex-start;
+  font-style: italic;
+  color: #888;
+  padding-left: 10px;
+}
+
+/* --- Input Form --- */
+.form {
+  display: flex;
+  padding: 15px;
+  border-top: 1px solid #e0e0e0;
+  background-color: #f9f9f9;
+  flex-shrink: 0; /* Prevents form from shrinking */
+}
+
+.input {
+  flex-grow: 1;
+  border: 1px solid #ccc;
+  padding: 10px 14px;
+  border-radius: 20px;
+  font-size: 15px;
+  outline: none; /* Remove default outline */
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.input:focus {
+  border-color: #007aff;
+  box-shadow: 0 0 0 2px rgba(0,122,255,0.2);
+}
+
+.button {
+  margin-left: 10px;
+  padding: 10px 18px;
+  background-color: #007aff;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+  transition: background-color 0.2s ease;
+}
+
+.button:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+.button:disabled {
+  background-color: #a0cfff;
+  cursor: not-allowed;
+}

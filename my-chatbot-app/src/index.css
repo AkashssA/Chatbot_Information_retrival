@@ -1,0 +1,27 @@
+/* This file centers your application on the screen.
+  **IMPORTANT**: You must import this file into your `main.jsx` file.
+  
+  Add this line to the top of `main.jsx`:
+  import './index.css';
+*/
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  background-color: #f0f2f5; /* Light gray background for the whole page */
+}
+
+/* This ensures the React root fills the screen 
+   and helps with centering */
+#root {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px; /* Add some padding for small screens */
+  box-sizing: border-box;
+}
