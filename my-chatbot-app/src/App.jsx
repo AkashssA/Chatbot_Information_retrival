@@ -1,164 +1,190 @@
 import React, { useState, useEffect, useRef } from 'react';
-// 1. Import your new CSS file
 import './App.css';
 
-// 2. All styles are gone from here! Much cleaner.
-
-/**
- * Main Chatbot Application Component
- */
 function App() {
-  // State for the user's current input
   const [inputValue, setInputValue] = useState('');
+  const [wantImage, setWantImage] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  // NEW: State for listening status
+  const [isListening, setIsListening] = useState(false);
   
-  // State for the list of all messages (user and bot)
   const [messages, setMessages] = useState([
     { 
       sender: 'bot', 
-      text: "Hi! I'm the Environmental Science Bot. Ask me about topics like pollution, renewable energy, or sustainability!",
+      text: "Hi! I'm EcoBot. Type or use the microphone to ask about the environment!",
+      image: null,
+      suggestions: ["What is pollution?", "AQI in Delhi", "Save water tips"], 
       isError: false 
     }
   ]);
   
-  // State to show a "typing..." indicator
-  const [isLoading, setIsLoading] = useState(false);
-
-  // Ref to the end of the message list, for auto-scrolling
   const messagesEndRef = useRef(null);
 
-  // Function to scroll to the bottom of the message list
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // useEffect to scroll to bottom whenever messages change
   useEffect(() => {
     scrollToBottom();
   }, [messages, isLoading]);
 
-  /**
-   * Fetches a response from the new local proxy server.
-   * @param {string} query - The user's input
-   * @param {number} maxRetries - Maximum number of retries
-   */
-  const fetchBotResponse = async (query, maxRetries = 3) => {
-    // Points to your local server
-    const apiUrl = `http://localhost:3001/api/chat`;
-
-    let attempt = 0;
-    while (attempt < maxRetries) {
-      try {
-        const response = await fetch(apiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          // Send the user's query in the body
-          body: JSON.stringify({ query: query }),
-        });
-
-        if (!response.ok) {
-          if (response.status >= 500) {
-            console.warn(`Attempt ${attempt + 1}: Server error ${response.status}`);
-            throw new Error(`Server error: ${response.status}`);
-          }
-          const errorData = await response.json();
-          console.error('API Error Response:', errorData);
-          return { text: `Sorry, I encountered an error: ${errorData.error || response.statusText}`, isError: true };
-        }
-
-        const result = await response.json();
-        
-        if (result.response) {
-          return { text: result.response, isError: false };
-        } else {
-          console.error('Unexpected API response structure:', result);
-          return { text: "Sorry, I received an an unexpected response. Please try again.", isError: true };
-        }
-
-      } catch (error) {
-        console.warn(`Attempt ${attempt + 1} failed:`, error.message);
-        attempt++;
-        if (attempt >= maxRetries) {
-          return { text: "Sorry, I'm having trouble connecting. Please check your network and try again later.", isError: true };
-        }
-        const delay = Math.pow(2, attempt) * 1000;
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
+  // --- NEW: Voice Recognition Logic ---
+  const startListening = () => {
+    // Check browser support
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (!SpeechRecognition) {
+      alert("Browser does not support speech recognition. Try Chrome.");
+      return;
     }
-    return { text: "Sorry, all attempts to get a response failed.", isError: true };
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US'; // You can change to 'en-IN' for Indian English
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    setIsListening(true);
+    recognition.start();
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      setInputValue(transcript);
+      setIsListening(false);
+      // Optional: Auto-send after speaking
+      // handleSend(transcript); 
+    };
+
+    recognition.onerror = (event) => {
+      console.error("Speech error:", event.error);
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
   };
 
-  /**
-   * Handles the form submission (when user presses Enter or clicks Send)
-   * @param {React.FormEvent} e - The form event
-   */
-  const handleSubmit = async (e) => {
-    e.preventDefault(); // Prevent page reload
-    const userInput = inputValue.trim();
+  // --- Existing Download Logic ---
+  const handleDownloadChat = () => {
+    const timestamp = new Date().toLocaleString();
+    let fileContent = `TRANSCRIPT - ${timestamp}\n\n`;
+    messages.forEach((msg) => {
+      fileContent += `[${msg.sender.toUpperCase()}]: ${msg.text}\n`;
+      if (msg.image) fileContent += `[Image]: ${msg.image}\n`;
+      fileContent += `\n`;
+    });
+    const blob = new Blob([fileContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `EcoBot_Chat.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
 
-    if (!userInput) return; // Don't send empty messages
+  const fetchBotResponse = async (query, includeImage) => {
+    const apiUrl = `http://localhost:3001/api/chat`;
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, includeImage }),
+      });
 
-    setMessages(prev => [...prev, { sender: 'user', text: userInput, isError: false }]);
+      if (!response.ok) throw new Error("Server error");
+      const result = await response.json();
+      
+      if (result.response) {
+        const parts = result.response.split('||');
+        return { 
+          text: parts[0].trim(), 
+          image: result.image || null,
+          suggestions: parts[1] ? parts[1].split('|').map(s => s.trim()) : [],
+          isError: false 
+        };
+      } 
+      return { text: "Unexpected response.", isError: true };
+
+    } catch (error) {
+      return { text: "Connection failed.", isError: true };
+    }
+  };
+
+  const handleSend = async (text) => {
+    if (!text.trim()) return;
+    setMessages(prev => [...prev, { sender: 'user', text: text, isError: false }]);
     setInputValue('');
     setIsLoading(true);
-
-    const botResponse = await fetchBotResponse(userInput);
-
+    const botResponse = await fetchBotResponse(text, wantImage);
     setIsLoading(false);
-    setMessages(prev => [...prev, { sender: 'bot', text: botResponse.text, isError: botResponse.isError }]);
+    setMessages(prev => [...prev, { 
+        sender: 'bot', 
+        text: botResponse.text, 
+        image: botResponse.image, 
+        suggestions: botResponse.suggestions, 
+        isError: botResponse.isError 
+    }]);
   };
 
-  // 3. All 'style' props are changed to 'className'
+  const handleSubmit = (e) => {
+    e.preventDefault(); 
+    handleSend(inputValue);
+  };
+
   return (
     <div className="app-container">
-      {/* --- Header --- */}
       <header className="header">
-        <h1 className="title">Explainable Environmental Science Chatbot</h1>
+        <h1 className="title">EcoBot</h1>
+        <button className="download-btn" onClick={handleDownloadChat}>💾 Save Chat</button>
       </header>
 
-      {/* --- Message List --- */}
       <div className="message-list">
         {messages.map((msg, index) => (
-          <div
-            key={index}
-            // Combine multiple class names
-            className={`message ${
-              msg.sender === 'user' 
-                ? 'user-message' 
-                : (msg.isError ? 'error-message' : 'bot-message')
-            }`}
-          >
-            {msg.text}
+          <div key={index} className={`message ${msg.sender === 'user' ? 'user-message' : 'bot-message'}`}>
+            <p>{msg.text}</p>
+            {msg.image && <div className="message-image-container"><img src={msg.image} className="bot-image" onLoad={scrollToBottom} /></div>}
+            {msg.suggestions && (
+              <div className="suggestions-container">
+                <div className="chips-wrapper">
+                  {msg.suggestions.map((s, i) => (
+                    <button key={i} className="suggestion-chip" onClick={() => handleSend(s)}>{s}</button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ))}
-
-        {/* Show loading indicator */}
-        {isLoading && (
-          <div className="loading-message">
-            Bot is typing...
-          </div>
-        )}
-
-        {/* Empty div for auto-scrolling */}
+        {isLoading && <div className="loading-message">Bot is typing...</div>}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* --- Input Form --- */}
       <form onSubmit={handleSubmit} className="form">
+        {/* NEW: Microphone Button */}
+        <button 
+            type="button" 
+            className={`mic-button ${isListening ? 'listening' : ''}`}
+            onClick={startListening}
+            title="Speak"
+        >
+            {isListening ? '🔴' : '🎤'}
+        </button>
+
         <input
           type="text"
           className="input"
-          placeholder="Ask about pollution, sustainability..."
+          placeholder={isListening ? "Listening..." : "Ask about pollution..."}
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
-          aria-label="Chat input"
         />
-        <button
-          type="submit"
-          className="button"
-          disabled={isLoading} // Disable button while loading
-        >
-          Send
-        </button>
+        
+        <div className="checkbox-container">
+            <label>
+                <input type="checkbox" checked={wantImage} onChange={(e) => setWantImage(e.target.checked)}/>
+                <span>Image?</span>
+            </label>
+        </div>
+        <button type="submit" className="button" disabled={isLoading}>Send</button>
       </form>
     </div>
   );
